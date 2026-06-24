@@ -1,0 +1,1324 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Dashboard · Cadastro de Fornecedores | Spotlar</title>
+  <style>
+    :root {
+      --yellow: #F2E130;
+      --yellow-light: #FFFDE8;
+      --dark: #1C1C1C;
+      --gray-dark: #3A3A3A;
+      --gray-mid: #6B6B6B;
+      --gray-light: #E8E8E8;
+      --gray-bg: #F5F5F5;
+      --white: #FFFFFF;
+      --green: #27AE60;
+      --orange: #E67E22;
+      --red: #E74C3C;
+      --purple: #8E44AD;
+      --purple-light: #F5EEF8;
+      --gray-blue: #2C3E50;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: var(--gray-bg);
+      color: var(--dark);
+      min-height: 100vh;
+    }
+
+    /* ── Header ── */
+    header {
+      background: var(--white);
+      border-bottom: 3px solid var(--yellow);
+      padding: 14px 32px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      position: sticky;
+      top: 0;
+      z-index: 200;
+      box-shadow: 0 2px 12px rgba(0,0,0,0.06);
+    }
+
+    .logo { display: flex; align-items: center; }
+    .logo-text {
+      background: var(--yellow);
+      color: var(--dark);
+      font-weight: 900;
+      font-size: 17px;
+      letter-spacing: 2px;
+      padding: 7px 14px;
+      border-radius: 8px;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      line-height: 1;
+      white-space: nowrap;
+    }
+
+    .header-center {
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--gray-mid);
+      letter-spacing: 0.2px;
+    }
+
+    .header-right {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .last-update {
+      font-size: 12px;
+      color: var(--gray-mid);
+    }
+
+    .btn-reload {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 7px 14px;
+      background: var(--dark);
+      color: var(--white);
+      border: none;
+      border-radius: 8px;
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.15s;
+    }
+    .btn-reload:hover { background: var(--gray-dark); }
+    .btn-reload:disabled { opacity: 0.5; cursor: not-allowed; }
+    .btn-reload.spinning .btn-icon { display: inline-block; animation: spin 1s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    .btn-upload-manual {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 7px 14px;
+      background: transparent;
+      color: var(--gray-mid);
+      border: 1.5px solid var(--gray-light);
+      border-radius: 8px;
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+    .btn-upload-manual:hover { border-color: var(--dark); color: var(--dark); }
+
+    /* ── Loading state ── */
+    .loading-zone {
+      background: var(--white);
+      border-radius: 16px;
+      padding: 56px 40px;
+      text-align: center;
+      margin-bottom: 0;
+    }
+    .spinner {
+      width: 40px; height: 40px;
+      border: 4px solid var(--gray-light);
+      border-top-color: var(--yellow);
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+      margin: 0 auto 16px;
+    }
+    .loading-title { font-size: 16px; font-weight: 600; color: var(--dark); margin-bottom: 6px; }
+    .loading-sub   { font-size: 13px; color: var(--gray-mid); }
+
+    /* ── Main ── */
+    main {
+      max-width: 1240px;
+      margin: 0 auto;
+      padding: 32px 24px;
+    }
+
+    /* ── Upload ── */
+    .upload-zone {
+      background: var(--white);
+      border: 2px dashed var(--gray-light);
+      border-radius: 16px;
+      padding: 56px 40px;
+      text-align: center;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .upload-zone:hover, .upload-zone.drag-over {
+      border-color: var(--yellow);
+      background: var(--yellow-light);
+    }
+    .upload-icon { font-size: 52px; margin-bottom: 16px; }
+    .upload-title { font-size: 20px; font-weight: 700; margin-bottom: 8px; }
+    .upload-subtitle { font-size: 14px; color: var(--gray-mid); line-height: 1.6; }
+    .upload-hint {
+      display: inline-block;
+      margin-top: 16px;
+      padding: 6px 14px;
+      background: var(--yellow);
+      border-radius: 999px;
+      font-size: 12px;
+      font-weight: 700;
+      color: var(--dark);
+    }
+    #fileInput { display: none; }
+
+    /* ── Dashboard ── */
+    #dashboard { display: none; }
+
+    /* ── KPI Row ── */
+    .kpi-row {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 16px;
+      margin-bottom: 20px;
+    }
+
+    .kpi-card {
+      background: var(--white);
+      border-radius: 14px;
+      padding: 22px 24px;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+      border-left: 4px solid transparent;
+    }
+    .kpi-card.accent  { border-left-color: var(--yellow); }
+    .kpi-card.green   { border-left-color: var(--green); }
+    .kpi-card.orange  { border-left-color: var(--orange); }
+    .kpi-card.red     { border-left-color: var(--red); }
+    .kpi-card.purple  { border-left-color: var(--purple); }
+    .kpi-card.slate   { border-left-color: var(--gray-blue); }
+
+    .kpi-label {
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.8px;
+      color: var(--gray-mid);
+      margin-bottom: 10px;
+    }
+    .kpi-value {
+      font-size: 38px;
+      font-weight: 800;
+      line-height: 1;
+      color: var(--dark);
+    }
+    .kpi-value.green  { color: var(--green); }
+    .kpi-value.orange { color: var(--orange); }
+    .kpi-value.red    { color: var(--red); }
+    .kpi-value.purple { color: var(--purple); }
+    .kpi-value.slate  { color: var(--gray-blue); }
+    .kpi-sub {
+      font-size: 12px;
+      color: var(--gray-mid);
+      margin-top: 6px;
+    }
+
+    /* ── Overall progress ── */
+    .overall-card {
+      background: var(--white);
+      border-radius: 14px;
+      padding: 20px 24px;
+      margin-bottom: 20px;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+      display: flex;
+      align-items: center;
+      gap: 24px;
+    }
+    .overall-label { font-size: 13px; font-weight: 700; color: var(--dark); white-space: nowrap; }
+    .overall-pct { font-size: 28px; font-weight: 800; color: var(--dark); white-space: nowrap; }
+    .overall-bar-track {
+      flex: 1;
+      background: var(--gray-light);
+      border-radius: 999px;
+      height: 14px;
+      overflow: hidden;
+    }
+    .overall-bar-fill {
+      height: 100%;
+      border-radius: 999px;
+      background: var(--yellow);
+      transition: width 1s cubic-bezier(.4,0,.2,1);
+    }
+
+    /* ── Section title ── */
+    .section-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 14px;
+    }
+    .section-title {
+      font-size: 15px;
+      font-weight: 700;
+      color: var(--dark);
+    }
+    .section-count {
+      font-size: 12px;
+      color: var(--gray-mid);
+    }
+
+    /* ── Category cards ── */
+    .category-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+      gap: 12px;
+      margin-bottom: 24px;
+    }
+    .cat-card {
+      background: var(--white);
+      border-radius: 12px;
+      padding: 16px 18px;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.05);
+      cursor: pointer;
+      border: 2px solid transparent;
+      transition: all 0.15s;
+    }
+    .cat-card:hover { border-color: var(--yellow); }
+    .cat-card.active { border-color: var(--dark); background: var(--yellow-light); }
+    .cat-card.sem-cat {
+      border: 2px dashed #E67E22;
+      background: #FEF9F0;
+    }
+    .cat-card.sem-cat:hover { border-color: #D35400; background: #FDEBD0; }
+    .cat-card.sem-cat.active { border-color: #D35400; background: #FDEBD0; }
+    .cat-card.sem-cat .cat-name { color: #D35400; }
+    .cat-card.sem-cat .mini-fill { background: #E67E22 !important; }
+
+    .cat-name {
+      font-size: 13px;
+      font-weight: 700;
+      margin-bottom: 6px;
+      color: var(--dark);
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .cat-meta {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      margin-bottom: 8px;
+    }
+    .cat-count { font-size: 11px; color: var(--gray-mid); }
+    .cat-pct   { font-size: 20px; font-weight: 800; }
+
+    .mini-track {
+      background: var(--gray-light);
+      border-radius: 999px;
+      height: 5px;
+      overflow: hidden;
+    }
+    .mini-fill {
+      height: 100%;
+      border-radius: 999px;
+      background: var(--yellow);
+    }
+
+    /* ── Filters ── */
+    .filters-bar {
+      background: var(--white);
+      border-radius: 12px;
+      padding: 14px 18px;
+      display: flex;
+      gap: 12px;
+      align-items: center;
+      margin-bottom: 12px;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.05);
+      flex-wrap: wrap;
+    }
+    .filter-group {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex: 1;
+      min-width: 160px;
+    }
+    .filter-label {
+      font-size: 12px;
+      font-weight: 700;
+      color: var(--gray-mid);
+      white-space: nowrap;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    .filter-input, .filter-select {
+      flex: 1;
+      border: 1.5px solid var(--gray-light);
+      border-radius: 8px;
+      padding: 8px 10px;
+      font-size: 13px;
+      color: var(--dark);
+      background: var(--white);
+      outline: none;
+      transition: border-color 0.2s;
+    }
+    .filter-input:focus, .filter-select:focus { border-color: var(--yellow); }
+
+    .results-count {
+      font-size: 12px;
+      color: var(--gray-mid);
+      white-space: nowrap;
+      font-weight: 600;
+    }
+
+    /* ── Status na Spotlar ── */
+    .status-grid { display: flex; flex-direction: column; gap: 8px; margin-bottom: 24px; }
+
+    .status-card {
+      background: var(--white);
+      border-radius: 12px;
+      overflow: hidden;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.05);
+      border: 1.5px solid transparent;
+      transition: border-color 0.15s;
+    }
+    .status-card.open { border-color: var(--yellow); }
+
+    .status-header {
+      display: flex;
+      align-items: center;
+      padding: 14px 18px;
+      cursor: pointer;
+      gap: 12px;
+      user-select: none;
+    }
+    .status-header:hover { background: var(--yellow-light); }
+
+    .status-dot {
+      width: 10px; height: 10px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+    .status-name  { font-size: 14px; font-weight: 700; flex: 1; }
+    .status-bar-wrap { flex: 2; display: flex; align-items: center; gap: 8px; }
+    .status-mini-track {
+      flex: 1; height: 6px;
+      background: var(--gray-light);
+      border-radius: 999px; overflow: hidden;
+    }
+    .status-mini-fill { height: 100%; border-radius: 999px; }
+    .status-pct  { font-size: 11px; color: var(--gray-mid); font-weight: 600; white-space: nowrap; }
+    .status-count-badge {
+      background: var(--gray-light);
+      border-radius: 999px;
+      padding: 3px 10px;
+      font-size: 12px;
+      font-weight: 700;
+      color: var(--dark);
+      white-space: nowrap;
+    }
+    .status-chevron { font-size: 10px; color: var(--gray-mid); transition: transform 0.2s; }
+    .status-card.open .status-chevron { transform: rotate(180deg); }
+
+    .status-body { display: none; border-top: 1px solid var(--gray-light); padding: 12px 18px 16px; }
+    .status-card.open .status-body { display: block; }
+    .status-vendor-list { display: flex; flex-wrap: wrap; gap: 6px; }
+    .status-vendor-tag {
+      padding: 4px 10px;
+      background: var(--gray-bg);
+      border-radius: 6px;
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--dark);
+      cursor: pointer;
+      transition: background 0.12s;
+    }
+    .status-vendor-tag:hover { background: var(--yellow); }
+
+    /* ── Colunas ordenáveis ── */
+    thead th.sortable { cursor: pointer; user-select: none; }
+    thead th.sortable:hover { background: #2d2d2d; }
+    .sort-icon { margin-left: 5px; opacity: 0.4; font-size: 10px; }
+    thead th.sort-asc  .sort-icon,
+    thead th.sort-desc .sort-icon { opacity: 1; }
+
+    /* ── Paginação ── */
+    .pagination {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      padding: 16px 0 4px;
+    }
+    .page-btn {
+      padding: 6px 12px;
+      border: 1.5px solid var(--gray-light);
+      border-radius: 8px;
+      background: var(--white);
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+      color: var(--dark);
+      transition: all 0.15s;
+    }
+    .page-btn:hover:not(:disabled) { border-color: var(--dark); }
+    .page-btn.active { background: var(--dark); color: var(--white); border-color: var(--dark); }
+    .page-btn:disabled { opacity: 0.35; cursor: not-allowed; }
+    .page-info { font-size: 12px; color: var(--gray-mid); padding: 0 8px; }
+
+    /* ── Table ── */
+    .table-wrap {
+      background: var(--white);
+      border-radius: 14px;
+      overflow: hidden;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+    }
+    table { width: 100%; border-collapse: collapse; }
+
+    thead th {
+      background: var(--dark);
+      color: var(--white);
+      padding: 13px 18px;
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.7px;
+      text-align: left;
+      white-space: nowrap;
+    }
+    thead th:first-child { border-radius: 0; }
+
+    tbody tr.vendor-row {
+      border-bottom: 1px solid var(--gray-light);
+      cursor: pointer;
+      transition: background 0.12s;
+    }
+    tbody tr.vendor-row:hover { background: var(--yellow-light); }
+    tbody tr.vendor-row:last-of-type { border-bottom: none; }
+
+    td { padding: 13px 18px; font-size: 13px; vertical-align: middle; }
+
+    .vendor-name { font-weight: 700; font-size: 13px; }
+    .vendor-cnpj { font-size: 11px; color: var(--gray-mid); margin-top: 2px; font-family: monospace; }
+
+    .badge {
+      display: inline-block;
+      padding: 3px 9px;
+      border-radius: 999px;
+      font-size: 11px;
+      font-weight: 600;
+      background: var(--gray-light);
+      color: var(--gray-dark);
+      white-space: nowrap;
+    }
+    .badge.none     { background: #f0f0f0; color: #999; font-style: italic; }
+    .badge.excluir  { background: #FADBD8; color: #922B21; }
+    .badge.duplicata{ background: var(--purple-light); color: var(--purple); }
+
+    .row-bar-wrap { display: flex; align-items: center; gap: 10px; }
+    .row-bar-track {
+      width: 90px; height: 6px;
+      background: var(--gray-light);
+      border-radius: 999px;
+      overflow: hidden;
+      flex-shrink: 0;
+    }
+    .row-bar-fill { height: 100%; border-radius: 999px; }
+    .row-pct { font-size: 13px; font-weight: 800; min-width: 36px; }
+
+    .fields-summary { font-size: 12px; color: var(--gray-mid); }
+    .fields-summary b { color: var(--dark); }
+
+    .expand-chevron {
+      font-size: 11px;
+      color: var(--gray-mid);
+      transition: transform 0.2s;
+      display: inline-block;
+    }
+    .expand-chevron.open { transform: rotate(180deg); }
+
+    /* ── Expanded detail row ── */
+    tr.detail-row { display: none; }
+    tr.detail-row.open { display: table-row; }
+
+    .detail-inner {
+      padding: 20px 24px;
+      background: var(--gray-bg);
+      border-bottom: 1px solid var(--gray-light);
+    }
+    .detail-section-title {
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.7px;
+      color: var(--gray-mid);
+      margin-bottom: 10px;
+    }
+    .tags-wrap { display: flex; flex-wrap: wrap; gap: 6px; }
+    .tag {
+      padding: 4px 10px;
+      border-radius: 6px;
+      font-size: 11px;
+      font-weight: 600;
+    }
+    .tag-empty   { background: #FADBD8; color: #922B21; }
+    .tag-filled  { background: #D5F5E3; color: #1E8449; }
+
+    /* ── Empty state ── */
+    .empty-state {
+      padding: 60px 20px;
+      text-align: center;
+      color: var(--gray-mid);
+    }
+    .empty-state-icon { font-size: 40px; margin-bottom: 12px; }
+    .empty-state-text { font-size: 14px; }
+
+    /* ── Responsive ── */
+    @media (max-width: 900px) {
+      .kpi-row { grid-template-columns: repeat(2, 1fr); }
+    }
+    @media (max-width: 600px) {
+      .kpi-row { grid-template-columns: 1fr 1fr; }
+      header { padding: 12px 16px; }
+      .header-center { display: none; }
+      main { padding: 20px 12px; }
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <div class="logo">
+    <span class="logo-text">SPOTLAR</span>
+  </div>
+  <div class="header-center">Dashboard · Cadastro de Fornecedores</div>
+  <div class="header-right">
+    <span class="last-update" id="lastUpdate"></span>
+    <button class="btn-upload-manual" id="btnManual" title="Carregar CSV local">📂 CSV local</button>
+    <button class="btn-reload" id="btnReload"><span class="btn-icon">⟳</span> Atualizar</button>
+  </div>
+</header>
+
+<main>
+
+  <!-- Loading -->
+  <div class="loading-zone" id="loadingZone">
+    <div class="spinner"></div>
+    <div class="loading-title">Carregando dados da planilha…</div>
+    <div class="loading-sub">Buscando direto do Google Sheets</div>
+  </div>
+
+  <!-- Upload manual (fallback, oculto) -->
+  <div class="upload-zone" id="uploadZone" style="display:none">
+    <div class="upload-icon">📂</div>
+    <div class="upload-title">Carregar CSV manualmente</div>
+    <div class="upload-subtitle">
+      Exporte a aba <strong>"Fornecedores [Atualizada]"</strong> como CSV<br>
+      e arraste aqui ou clique para selecionar o arquivo
+    </div>
+    <span class="upload-hint">Arquivo → Fazer download → CSV</span>
+    <input type="file" id="fileInput" accept=".csv,.txt">
+  </div>
+
+  <!-- Dashboard -->
+  <div id="dashboard">
+
+    <!-- KPIs -->
+    <div class="kpi-row" id="kpiRow"></div>
+    <div class="kpi-row" style="grid-template-columns: repeat(2,1fr); margin-top: -8px;" id="alertRow"></div>
+
+    <!-- Overall progress -->
+    <div class="overall-card">
+      <div class="overall-label">Preenchimento<br>Geral</div>
+      <div class="overall-pct" id="overallPct">—</div>
+      <div class="overall-bar-track">
+        <div class="overall-bar-fill" id="overallBar" style="width:0%"></div>
+      </div>
+    </div>
+
+    <!-- Categories -->
+    <div class="section-header">
+      <span class="section-title">Por Categoria</span>
+      <span class="section-count" id="catSectionCount"></span>
+    </div>
+    <div class="category-grid" id="categoryGrid"></div>
+
+    <!-- Status na Spotlar -->
+    <div class="section-header" style="margin-top:8px">
+      <span class="section-title">Status na Spotlar</span>
+      <span class="section-count" id="statusSectionCount"></span>
+    </div>
+    <div class="status-grid" id="statusGrid"></div>
+
+    <!-- Filters -->
+    <div class="filters-bar">
+      <div class="filter-group">
+        <span class="filter-label">Buscar</span>
+        <input class="filter-input" id="searchInput" type="text" placeholder="Nome ou CNPJ...">
+      </div>
+      <div class="filter-group" style="flex:0.6">
+        <span class="filter-label">Status</span>
+        <select class="filter-select" id="statusFilter">
+          <option value="">Todos</option>
+          <option value="complete">Completos (100%)</option>
+          <option value="progress">Em progresso</option>
+          <option value="empty">Não iniciados (0%)</option>
+          <option value="excluir">A Excluir</option>
+          <option value="duplicata">Duplicatas</option>
+        </select>
+      </div>
+      <span class="results-count" id="resultsCount"></span>
+    </div>
+
+    <!-- Table -->
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th class="sortable" data-col="nome">Fornecedor <span class="sort-icon">↕</span></th>
+            <th class="sortable" data-col="categoria">Categoria <span class="sort-icon">↕</span></th>
+            <th class="sortable sort-desc" data-col="pct">Progresso <span class="sort-icon">↓</span></th>
+            <th class="sortable" data-col="filled">Campos <span class="sort-icon">↕</span></th>
+            <th style="width:32px"></th>
+          </tr>
+        </thead>
+        <tbody id="vendorTbody"></tbody>
+      </table>
+    </div>
+    <div class="pagination" id="pagination"></div>
+
+  </div><!-- /dashboard -->
+
+</main>
+
+<script>
+// ─── URL da planilha (Google Sheets publicado como CSV) ───────────────────────
+const SHEET_CSV_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vTGw3kwGAQ0aHSfclhVTwhtmz6nQ53UhfM-6EEqeCWIcem5peGzXOaK8xjKarkLpMhaufH8gw3XgcKO/pub?gid=367074941&single=true&output=csv';
+
+// ─── Configuração ─────────────────────────────────────────────────────────────
+
+const EXCLUDED_COLS = new Set([
+  '_RowNumber',
+  'ID_Fornecedor',
+  'Novo ID',
+  'Dados cadastrais',
+  'REGIME_TRIBUTARIO',
+  'CONDICAO_PAGAMENTO',
+  'COMPRA_MINIMA',
+  'PRAZO_ENTREGA',
+  'ENTREGA',
+  'TEMPO_GARANTIA',
+  'Contatos',
+  'Endereço->',
+  'Pós-Venda',
+  'SAC',
+  'Motivo cancelamento',
+]);
+
+const COL_STATUS   = 'Status na Spotlar';
+const COL_CAT      = 'Categoria principal';
+const COL_NOME     = 'Nome Fantasia';
+const COL_RAZAO    = 'Razão social';
+const COL_CNPJ     = 'CNPJ';
+const STATUS_EXCLUIR = 'Excluir';
+
+// ─── Estado ──────────────────────────────────────────────────────────────────
+
+let allVendors  = [];
+let dataFields  = [];
+let activeCat   = '';
+let openRows    = new Set();
+let currentPage = 1;
+const PAGE_SIZE = 50;
+let sortCol = 'pct';
+let sortDir = 'desc';
+let openStatuses = new Set();
+
+// ─── CSV Parser ───────────────────────────────────────────────────────────────
+
+function parseCSV(text) {
+  // Normalize line endings
+  const lines = text.replace(/\r\n/g, '\n').replace(/\r/g, '\n').split('\n');
+  const nonEmpty = lines.filter(l => l.trim() !== '');
+  if (nonEmpty.length < 2) return { headers: [], rows: [] };
+
+  const headers = parseLine(nonEmpty[0]);
+  const rows = [];
+  for (let i = 1; i < nonEmpty.length; i++) {
+    const vals = parseLine(nonEmpty[i]);
+    if (vals.every(v => !v.trim())) continue;
+    const row = {};
+    headers.forEach((h, idx) => {
+      // Keep first occurrence for duplicate column names
+      if (!(h in row)) row[h] = (vals[idx] || '').trim();
+    });
+    rows.push(row);
+  }
+  return { headers, rows };
+}
+
+function parseLine(line) {
+  const result = [];
+  let cur = '';
+  let inQ = false;
+  for (let i = 0; i < line.length; i++) {
+    const c = line[i];
+    if (c === '"') {
+      if (inQ && line[i + 1] === '"') { cur += '"'; i++; }
+      else inQ = !inQ;
+    } else if (c === ',' && !inQ) {
+      result.push(cur); cur = '';
+    } else {
+      cur += c;
+    }
+  }
+  result.push(cur);
+  return result;
+}
+
+// Retorna apenas fornecedores ativos (sem Excluir) — base de todos os cálculos
+function calcVendors() { return allVendors.filter(v => !v.isExcluir); }
+
+// ─── Processar dados ──────────────────────────────────────────────────────────
+
+// Remove emojis e caracteres não imprimíveis para detectar campos vazios de fato
+const EMOJI_RE = /[\u{1F000}-\u{1FFFF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}]/gu;
+
+function isFilled(val) {
+  if (!val) return false;
+  const cleaned = val.replace(EMOJI_RE, '').trim();
+  return cleaned.length > 0;
+}
+
+function processData(headers, rows) {
+  // Campos únicos e não excluídos
+  const seen = new Set();
+  dataFields = [];
+  headers.forEach(h => {
+    const k = h.trim();
+    if (!k || EXCLUDED_COLS.has(k) || seen.has(k)) return;
+    seen.add(k);
+    dataFields.push(k);
+  });
+
+  // Score de cada fornecedor (incluindo Excluir, que valem 100%)
+  allVendors = rows.map(row => {
+    const status    = (row[COL_STATUS] || '').trim();
+    const isExcluir = status === STATUS_EXCLUIR;
+
+    let filled  = [];
+    let missing = [];
+
+    if (isExcluir) {
+      // Análise concluída: conta como 100%
+      filled  = [...dataFields];
+      missing = [];
+    } else {
+      dataFields.forEach(f => {
+        if (isFilled(row[f])) filled.push(f);
+        else missing.push(f);
+      });
+    }
+
+    const pct = isExcluir
+      ? 100
+      : (dataFields.length > 0 ? Math.round(filled.length / dataFields.length * 100) : 0);
+
+    return {
+      nome       : row[COL_NOME] || row[COL_RAZAO] || '(sem nome)',
+      cnpj       : row[COL_CNPJ] || '',
+      razao      : row[COL_RAZAO] || '',
+      categoria  : (row[COL_CAT] || '').trim() || 'Sem categoria',
+      motivo     : (row['Motivo cancelamento'] || '').trim(),
+      raw_status : (row[COL_STATUS] || '').trim(),
+      pct, filled, missing, isExcluir,
+      isDuplicate: false,
+    };
+  });
+
+  // Detectar duplicatas: mesmo CNPJ ou motivo cancelamento contendo "duplic"
+  const cnpjMap = {};
+  allVendors.forEach(v => {
+    if (v.cnpj) cnpjMap[v.cnpj] = (cnpjMap[v.cnpj] || 0) + 1;
+  });
+  allVendors.forEach(v => {
+    if ((v.cnpj && cnpjMap[v.cnpj] > 1) ||
+        v.motivo.toLowerCase().includes('duplic')) {
+      v.isDuplicate = true;
+    }
+  });
+}
+
+// ─── Utilitários ─────────────────────────────────────────────────────────────
+
+function pctColor(pct) {
+  if (pct === 100) return 'var(--green)';
+  if (pct >= 50)  return 'var(--orange)';
+  return 'var(--red)';
+}
+
+function formatPct(pct) {
+  return pct + '%';
+}
+
+// ─── Renderização ─────────────────────────────────────────────────────────────
+
+function renderAll() {
+  renderKPIs();
+  renderOverall();
+  renderCategories();
+  renderStatus();
+  renderTable();
+}
+
+// Paleta de cores para os status
+const STATUS_COLORS = [
+  '#27AE60','#E67E22','#E74C3C','#8E44AD','#2980B9',
+  '#16A085','#D35400','#7F8C8D','#C0392B','#1ABC9C',
+];
+
+function renderStatus() {
+  // Agrupar por valor da coluna Status na Spotlar
+  const groups = {};
+  allVendors.forEach(v => {
+    const st = (v.raw_status || '').trim() || '(sem status)';
+    if (!groups[st]) groups[st] = [];
+    groups[st].push(v);
+  });
+
+  const sorted = Object.entries(groups).sort((a,b) => b[1].length - a[1].length);
+  const total  = allVendors.length;
+
+  document.getElementById('statusSectionCount').textContent =
+    `${sorted.length} status · ${total} fornecedores`;
+
+  document.getElementById('statusGrid').innerHTML = sorted.map(([status, vendors], i) => {
+    const color   = STATUS_COLORS[i % STATUS_COLORS.length];
+    const pct     = Math.round(vendors.length / total * 100);
+    const isOpen  = openStatuses.has(status);
+    const vendorTags = vendors
+      .sort((a,b) => a.nome.localeCompare(b.nome))
+      .map(v => `<span class="status-vendor-tag" title="${esc(v.cnpj)}">${esc(v.nome)}</span>`)
+      .join('');
+
+    return `
+      <div class="status-card ${isOpen ? 'open' : ''}" id="sc-${i}">
+        <div class="status-header" onclick="toggleStatus(${i}, '${escAttr(status)}')">
+          <span class="status-dot" style="background:${color}"></span>
+          <span class="status-name">${esc(status)}</span>
+          <div class="status-bar-wrap">
+            <div class="status-mini-track">
+              <div class="status-mini-fill" style="width:${pct}%;background:${color}"></div>
+            </div>
+            <span class="status-pct">${pct}% do total</span>
+          </div>
+          <span class="status-count-badge">${vendors.length} forn.</span>
+          <span class="status-chevron">▼</span>
+        </div>
+        <div class="status-body">
+          <div class="status-vendor-list">${vendorTags}</div>
+        </div>
+      </div>`;
+  }).join('');
+}
+
+function toggleStatus(i, status) {
+  const card = document.getElementById('sc-' + i);
+  if (!card) return;
+  const isOpen = card.classList.toggle('open');
+  if (isOpen) openStatuses.add(status);
+  else openStatuses.delete(status);
+}
+
+function renderKPIs() {
+  const active      = calcVendors();
+  const total       = active.length;
+  const complete    = active.filter(v => v.pct === 100).length;
+  const inProgress  = active.filter(v => v.pct > 0 && v.pct < 100).length;
+  const notStarted  = active.filter(v => v.pct === 0).length;
+  const excluirCount= allVendors.filter(v => v.isExcluir).length;
+  const dupCount    = allVendors.filter(v => v.isDuplicate).length;
+  const pctComplete = total > 0 ? Math.round(complete / total * 100) : 0;
+
+  document.getElementById('kpiRow').innerHTML = `
+    <div class="kpi-card accent">
+      <div class="kpi-label">Total de Fornecedores</div>
+      <div class="kpi-value">${total}</div>
+      <div class="kpi-sub">${dataFields.length} campos · excluídos separados</div>
+    </div>
+    <div class="kpi-card green">
+      <div class="kpi-label">Completos (100%)</div>
+      <div class="kpi-value green">${complete}</div>
+      <div class="kpi-sub">${pctComplete}% do total ativo</div>
+    </div>
+    <div class="kpi-card orange">
+      <div class="kpi-label">Em Progresso</div>
+      <div class="kpi-value orange">${inProgress}</div>
+      <div class="kpi-sub">parcialmente preenchidos</div>
+    </div>
+    <div class="kpi-card red">
+      <div class="kpi-label">Não Iniciados</div>
+      <div class="kpi-value red">${notStarted}</div>
+      <div class="kpi-sub">sem dados preenchidos</div>
+    </div>
+  `;
+
+  document.getElementById('alertRow').innerHTML = `
+    <div class="kpi-card slate">
+      <div class="kpi-label">A Excluir</div>
+      <div class="kpi-value slate">${excluirCount}</div>
+      <div class="kpi-sub">analisados · contam como 100%</div>
+    </div>
+    <div class="kpi-card purple">
+      <div class="kpi-label">Duplicatas</div>
+      <div class="kpi-value purple">${dupCount}</div>
+      <div class="kpi-sub">mesmo CNPJ ou motivo duplicata</div>
+    </div>
+  `;
+}
+
+function renderOverall() {
+  const active = calcVendors();
+  const avg = active.length > 0
+    ? Math.round(active.reduce((s, v) => s + v.pct, 0) / active.length)
+    : 0;
+  document.getElementById('overallPct').textContent = formatPct(avg);
+  // Delay for animation
+  setTimeout(() => {
+    document.getElementById('overallBar').style.width = avg + '%';
+  }, 80);
+}
+
+function renderCategories() {
+  const cats = {};
+  calcVendors().forEach(v => {
+    if (!cats[v.categoria]) cats[v.categoria] = [];
+    cats[v.categoria].push(v.pct);
+  });
+
+  // Separa "Sem categoria" dos demais e ordena os reais por % desc
+  const semCatEntry = Object.entries(cats).find(([k]) => k === 'Sem categoria');
+  const realCats    = Object.entries(cats)
+    .filter(([k]) => k !== 'Sem categoria')
+    .sort((a, b) => {
+      const aa = a[1].reduce((s, x) => s + x, 0) / a[1].length;
+      const bb = b[1].reduce((s, x) => s + x, 0) / b[1].length;
+      return bb - aa;
+    });
+
+  const semCatCount = semCatEntry ? semCatEntry[1].length : 0;
+  document.getElementById('catSectionCount').textContent =
+    `${realCats.length} categorias · ${semCatCount} sem categoria`;
+
+  const renderCard = ([cat, pcts], extraClass = '') => {
+    const avg      = Math.round(pcts.reduce((s, x) => s + x, 0) / pcts.length);
+    const complete = pcts.filter(p => p === 100).length;
+    const isActive = activeCat === cat;
+    return `
+      <div class="cat-card ${extraClass} ${isActive ? 'active' : ''}" data-cat="${escAttr(cat)}">
+        <div class="cat-name" title="${escAttr(cat)}">${esc(cat)}</div>
+        <div class="cat-meta">
+          <span class="cat-count">${pcts.length} forn. · ${complete} completo${complete !== 1 ? 's' : ''}</span>
+          <span class="cat-pct" style="color:${extraClass ? '#E67E22' : pctColor(avg)}">${avg}%</span>
+        </div>
+        <div class="mini-track"><div class="mini-fill" style="width:${avg}%;background:${extraClass ? '#E67E22' : pctColor(avg)}"></div></div>
+      </div>`;
+  };
+
+  document.getElementById('categoryGrid').innerHTML =
+    realCats.map(e => renderCard(e)).join('') +
+    (semCatEntry ? renderCard(semCatEntry, 'sem-cat') : '');
+
+  // Eventos nos cards de categoria
+  document.querySelectorAll('.cat-card').forEach(card => {
+    card.addEventListener('click', () => {
+      const cat = card.dataset.cat;
+      activeCat = (activeCat === cat) ? '' : cat;
+      renderCategories();
+      renderTable();
+    });
+  });
+}
+
+function getFiltered() {
+  const search = (document.getElementById('searchInput').value || '').toLowerCase().trim();
+  const status = document.getElementById('statusFilter').value;
+
+  return calcVendors().filter(v => {
+    if (activeCat && v.categoria !== activeCat) return false;
+    if (search) {
+      const haystack = (v.nome + ' ' + v.cnpj + ' ' + v.razao).toLowerCase();
+      if (!haystack.includes(search)) return false;
+    }
+    if (status === 'complete'  && v.pct !== 100) return false;
+    if (status === 'progress'  && (v.pct === 0 || v.pct === 100)) return false;
+    if (status === 'empty'     && v.pct !== 0) return false;
+    if (status === 'excluir'   && !v.isExcluir) return false;
+    if (status === 'duplicata' && !v.isDuplicate) return false;
+    return true;
+  });
+}
+
+function renderPagination(totalPages) {
+  const el = document.getElementById('pagination');
+  if (totalPages <= 1) { el.innerHTML = ''; return; }
+
+  const maxVisible = 5;
+  let start = Math.max(1, currentPage - 2);
+  let end   = Math.min(totalPages, start + maxVisible - 1);
+  if (end - start < maxVisible - 1) start = Math.max(1, end - maxVisible + 1);
+
+  let html = `<button class="page-btn" ${currentPage===1?'disabled':''} onclick="goPage(${currentPage-1})">‹</button>`;
+  if (start > 1) html += `<button class="page-btn" onclick="goPage(1)">1</button>${start>2?'<span class="page-info">…</span>':''}`;
+  for (let p = start; p <= end; p++) {
+    html += `<button class="page-btn ${p===currentPage?'active':''}" onclick="goPage(${p})">${p}</button>`;
+  }
+  if (end < totalPages) html += `${end<totalPages-1?'<span class="page-info">…</span>':''}<button class="page-btn" onclick="goPage(${totalPages})">${totalPages}</button>`;
+  html += `<button class="page-btn" ${currentPage===totalPages?'disabled':''} onclick="goPage(${currentPage+1})">›</button>`;
+  html += `<span class="page-info">Página ${currentPage} de ${totalPages}</span>`;
+  el.innerHTML = html;
+}
+
+function goPage(p) {
+  currentPage = p;
+  openRows.clear();
+  renderTable();
+  document.querySelector('.table-wrap').scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+function renderTable() {
+  const vendors = getFiltered();
+  const tbody   = document.getElementById('vendorTbody');
+  const totalPages = Math.max(1, Math.ceil(vendors.length / PAGE_SIZE));
+  if (currentPage > totalPages) currentPage = 1;
+
+  document.getElementById('resultsCount').textContent =
+    `${vendors.length} fornecedor${vendors.length !== 1 ? 'es' : ''}`;
+
+  if (vendors.length === 0) {
+    tbody.innerHTML = `
+      <tr><td colspan="5">
+        <div class="empty-state">
+          <div class="empty-state-icon">🔍</div>
+          <div class="empty-state-text">Nenhum fornecedor encontrado com esses filtros.</div>
+        </div>
+      </td></tr>`;
+    document.getElementById('pagination').innerHTML = '';
+    return;
+  }
+
+  // Ordenação dinâmica
+  const sorted = [...vendors].sort((a, b) => {
+    let va, vb;
+    if (sortCol === 'pct')    { va = a.pct;            vb = b.pct; }
+    else if (sortCol === 'filled') { va = a.filled.length; vb = b.filled.length; }
+    else if (sortCol === 'nome')   { va = a.nome.toLowerCase(); vb = b.nome.toLowerCase(); }
+    else if (sortCol === 'categoria') { va = a.categoria.toLowerCase(); vb = b.categoria.toLowerCase(); }
+    else { va = a.pct; vb = b.pct; }
+    if (va < vb) return sortDir === 'asc' ? -1 : 1;
+    if (va > vb) return sortDir === 'asc' ?  1 : -1;
+    return 0;
+  });
+  const pageVendors = sorted.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
+
+  // Paginação
+  renderPagination(totalPages);
+
+
+  tbody.innerHTML = pageVendors.map((v, i) => {
+    const color    = pctColor(v.pct);
+    const rowId    = 'row-' + i;
+    const isOpen   = openRows.has(rowId);
+    const catLabel = v.categoria === 'Sem categoria'
+      ? `<span class="badge none">Sem categoria</span>`
+      : `<span class="badge">${esc(v.categoria)}</span>`;
+    const statusBadges = [
+      v.isExcluir   ? `<span class="badge excluir" style="margin-left:4px">A excluir</span>`  : '',
+      v.isDuplicate ? `<span class="badge duplicata" style="margin-left:4px">Duplicata</span>` : '',
+    ].join('');
+
+    // Tags de campos
+    const missingTags = v.missing.map(f => `<span class="tag tag-empty">✗ ${esc(f)}</span>`).join('');
+    const filledTags  = v.filled.map(f => `<span class="tag tag-filled">✓ ${esc(f)}</span>`).join('');
+
+    return `
+      <tr class="vendor-row" data-rowid="${rowId}">
+        <td>
+          <div class="vendor-name">${esc(v.nome)}${statusBadges}</div>
+          ${v.cnpj ? `<div class="vendor-cnpj">${esc(v.cnpj)}</div>` : ''}
+        </td>
+        <td>${catLabel}</td>
+        <td>
+          <div class="row-bar-wrap">
+            <div class="row-bar-track">
+              <div class="row-bar-fill" style="width:${v.pct}%;background:${color}"></div>
+            </div>
+            <span class="row-pct" style="color:${color}">${v.pct}%</span>
+          </div>
+        </td>
+        <td class="fields-summary">
+          <b>${v.filled.length}</b> / ${dataFields.length}
+          ${v.missing.length > 0
+            ? `<span style="color:var(--red);margin-left:4px">(${v.missing.length} faltando)</span>`
+            : `<span style="color:var(--green);margin-left:4px">✓ Completo</span>`}
+        </td>
+        <td style="text-align:center">
+          <span class="expand-chevron ${isOpen ? 'open' : ''}">▼</span>
+        </td>
+      </tr>
+      <tr class="detail-row ${isOpen ? 'open' : ''}" id="${rowId}-detail">
+        <td colspan="5">
+          <div class="detail-inner">
+            ${v.missing.length > 0 ? `
+              <div class="detail-section-title">Campos em falta (${v.missing.length})</div>
+              <div class="tags-wrap" style="margin-bottom:14px">${missingTags}</div>
+            ` : ''}
+            ${v.filled.length > 0 ? `
+              <div class="detail-section-title">Campos preenchidos (${v.filled.length})</div>
+              <div class="tags-wrap">${filledTags}</div>
+            ` : ''}
+          </div>
+        </td>
+      </tr>`;
+  }).join('');
+
+  // Delegação de eventos nas linhas
+  tbody.querySelectorAll('tr.vendor-row').forEach(row => {
+    row.addEventListener('click', () => {
+      const rid    = row.dataset.rowid;
+      const detail = document.getElementById(rid + '-detail');
+      const chev   = row.querySelector('.expand-chevron');
+      if (!detail) return;
+      const isNowOpen = detail.classList.toggle('open');
+      chev.classList.toggle('open', isNowOpen);
+      if (isNowOpen) openRows.add(rid);
+      else openRows.delete(rid);
+    });
+  });
+}
+
+// ─── Escape helpers ───────────────────────────────────────────────────────────
+function esc(str) {
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+}
+function escAttr(str) { return esc(str); }
+
+// ─── Renderizar dados do CSV (texto) ──────────────────────────────────────────
+function loadCSVText(text, source) {
+  try {
+    const { headers, rows } = parseCSV(text);
+    if (headers.length === 0) throw new Error('Arquivo vazio ou sem cabeçalho.');
+    processData(headers, rows);
+    if (allVendors.length === 0) throw new Error('Nenhum fornecedor encontrado. Verifique a aba exportada.');
+
+    activeCat = '';
+    openRows.clear();
+    document.getElementById('loadingZone').style.display = 'none';
+    document.getElementById('uploadZone').style.display  = 'none';
+    document.getElementById('dashboard').style.display   = 'block';
+    document.getElementById('lastUpdate').textContent    =
+      'Atualizado: ' + new Date().toLocaleString('pt-BR') + (source === 'sheet' ? ' · planilha' : ' · CSV local');
+    renderAll();
+  } catch (err) {
+    showError(err.message);
+  }
+}
+
+// ─── Buscar planilha online ────────────────────────────────────────────────────
+async function fetchSheet() {
+  const btn = document.getElementById('btnReload');
+  btn.disabled = true;
+  btn.classList.add('spinning');
+  document.getElementById('loadingZone').style.display  = 'block';
+  document.getElementById('dashboard').style.display    = 'none';
+  document.getElementById('lastUpdate').textContent     = '';
+
+  try {
+    const res = await fetch(SHEET_CSV_URL, { cache: 'no-store' });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const text = await res.text();
+    loadCSVText(text, 'sheet');
+  } catch (err) {
+    showError('Não foi possível buscar a planilha: ' + err.message +
+      '\n\nVerifique se a planilha está publicada ou use o CSV local.');
+  } finally {
+    btn.disabled = false;
+    btn.classList.remove('spinning');
+  }
+}
+
+function showError(msg) {
+  document.getElementById('loadingZone').style.display = 'none';
+  document.getElementById('dashboard').style.display   = 'none';
+  const zone = document.getElementById('uploadZone');
+  zone.style.display = 'block';
+  zone.querySelector('.upload-icon').textContent  = '⚠️';
+  zone.querySelector('.upload-title').textContent = 'Não foi possível carregar automaticamente';
+  zone.querySelector('.upload-subtitle').innerHTML =
+    `<span style="color:var(--red);font-size:12px">${msg}</span><br><br>
+     Use o botão abaixo para carregar o CSV manualmente:`;
+}
+
+// ─── Upload manual (fallback) ──────────────────────────────────────────────────
+function loadFile(file) {
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = e => loadCSVText(e.target.result, 'local');
+  reader.readAsText(file, 'UTF-8');
+}
+
+const zone      = document.getElementById('uploadZone');
+const fileInput = document.getElementById('fileInput');
+zone.addEventListener('click',    () => fileInput.click());
+zone.addEventListener('dragover',  e => { e.preventDefault(); zone.classList.add('drag-over'); });
+zone.addEventListener('dragleave', () => zone.classList.remove('drag-over'));
+zone.addEventListener('drop', e => {
+  e.preventDefault(); zone.classList.remove('drag-over');
+  loadFile(e.dataTransfer.files[0]);
+});
+fileInput.addEventListener('change', e => { loadFile(e.target.files[0]); fileInput.value = ''; });
+
+// ─── Botões do header ─────────────────────────────────────────────────────────
+document.getElementById('btnReload').addEventListener('click', fetchSheet);
+document.getElementById('btnManual').addEventListener('click', () => {
+  document.getElementById('loadingZone').style.display = 'none';
+  document.getElementById('uploadZone').style.display  = 'block';
+});
+
+// ─── Filtros ──────────────────────────────────────────────────────────────────
+document.getElementById('searchInput').addEventListener('input',   () => { currentPage = 1; renderTable(); });
+document.getElementById('statusFilter').addEventListener('change', () => { currentPage = 1; renderTable(); });
+
+// Ordenação por coluna
+document.querySelectorAll('thead th.sortable').forEach(th => {
+  th.addEventListener('click', () => {
+    const col = th.dataset.col;
+    if (sortCol === col) {
+      sortDir = sortDir === 'asc' ? 'desc' : 'asc';
+    } else {
+      sortCol = col;
+      sortDir = col === 'nome' || col === 'categoria' ? 'asc' : 'desc';
+    }
+    // Atualiza visual dos headers
+    document.querySelectorAll('thead th.sortable').forEach(t => {
+      t.classList.remove('sort-asc', 'sort-desc');
+      t.querySelector('.sort-icon').textContent = '↕';
+    });
+    th.classList.add(sortDir === 'asc' ? 'sort-asc' : 'sort-desc');
+    th.querySelector('.sort-icon').textContent = sortDir === 'asc' ? '↑' : '↓';
+    currentPage = 1;
+    renderTable();
+  });
+});
+
+// ─── Auto-carregar ao abrir ───────────────────────────────────────────────────
+document.addEventListener('DOMContentLoaded', () => {
+  if (window.location.protocol === 'file:') {
+    // file:// bloqueia fetch externo — vai direto para upload manual
+    document.getElementById('loadingZone').style.display = 'none';
+    document.getElementById('uploadZone').style.display  = 'block';
+  } else {
+    fetchSheet();
+  }
+});
+</script>
+</body>
+</html>
