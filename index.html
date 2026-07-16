@@ -909,14 +909,31 @@ function currentMetrics() {
     duplicatas : allVendors.filter(v => v.isDuplicate).length,
   };
 }
+function getLastMonday5am() {
+  const now = new Date();
+  const day = now.getDay(); // 0=Dom, 1=Seg, ..., 6=Sab
+  const daysBack = day === 0 ? 6 : day - 1;
+  const mon = new Date(now);
+  mon.setDate(now.getDate() - daysBack);
+  mon.setHours(5, 0, 0, 0);
+  // Se é segunda mas ainda não passou das 5h, usa a segunda anterior
+  if (daysBack === 0 && now < mon) mon.setDate(mon.getDate() - 7);
+  return mon;
+}
+
 function initSnapshot() {
   const snap = getSnap();
-  if (!snap) {
+  const lastMon5am = getLastMonday5am();
+
+  if (!snap || new Date(snap.savedAt) < lastMon5am) {
+    // Sem snapshot ou snapshot de semana anterior → início de nova semana
     saveSnap(currentMetrics());
     weekDelta = null;
     weekSnapDate = null;
     return;
   }
+
+  // Snapshot desta semana → calcula delta acumulado
   const cur = currentMetrics();
   weekDelta = {
     total      : cur.total      - snap.total,
@@ -927,11 +944,6 @@ function initSnapshot() {
     duplicatas : cur.duplicatas - snap.duplicatas,
   };
   weekSnapDate = snap.savedAt;
-  // Auto-atualiza às segundas se snapshot tem 6+ dias
-  const days = (Date.now() - new Date(snap.savedAt)) / 86400000;
-  if (new Date().getDay() === 1 && days >= 6) {
-    saveSnap(cur);
-  }
 }
 function resetBaseline() {
   saveSnap(currentMetrics());
