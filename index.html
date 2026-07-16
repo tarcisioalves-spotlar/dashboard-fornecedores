@@ -244,6 +244,23 @@
       transition: all 0.15s;
     }
     .btn-baseline:hover { border-color: var(--yellow); color: var(--dark); background: var(--yellow-light); }
+    .status-delta {
+      font-size: 11px;
+      font-weight: 700;
+      padding: 2px 7px;
+      border-radius: 999px;
+      white-space: nowrap;
+    }
+    .status-delta.up   { background: #EAFAF1; color: var(--green); }
+    .status-delta.down { background: #FDEDEC; color: var(--red); }
+    .status-delta.neu  { background: var(--gray-light); color: var(--gray-mid); }
+    .cat-delta {
+      font-size: 11px;
+      font-weight: 700;
+      margin-top: 5px;
+    }
+    .cat-delta.up   { color: var(--green); }
+    .cat-delta.down { color: var(--red); }
 
     /* ── Overall progress ── */
     .overall-card {
@@ -904,6 +921,23 @@ function saveSnap(m) {
 function currentMetrics() {
   const a = calcVendors();
   const avgPct = a.length > 0 ? Math.round(a.reduce((s, v) => s + v.pct, 0) / a.length) : 0;
+
+  const byStatus = {};
+  allVendors.forEach(v => {
+    const st = (v.raw_status || '').trim() || '(sem status)';
+    byStatus[st] = (byStatus[st] || 0) + 1;
+  });
+
+  const byCat = {};
+  a.forEach(v => {
+    if (!byCat[v.categoria]) byCat[v.categoria] = { count: 0, total: 0 };
+    byCat[v.categoria].count++;
+    byCat[v.categoria].total += v.pct;
+  });
+  Object.keys(byCat).forEach(k => {
+    byCat[k] = Math.round(byCat[k].total / byCat[k].count);
+  });
+
   return {
     total      : a.length,
     complete   : a.filter(v => v.pct === 100).length,
@@ -911,7 +945,7 @@ function currentMetrics() {
     notStarted : a.filter(v => v.pct === 0).length,
     excluir    : allVendors.filter(v => v.isExcluir).length,
     duplicatas : allVendors.filter(v => v.isDuplicate).length,
-    avgPct,
+    avgPct, byStatus, byCat,
   };
 }
 function getLastMonday5am() {
@@ -940,6 +974,21 @@ function initSnapshot() {
 
   // Snapshot desta semana → calcula delta acumulado
   const cur = currentMetrics();
+
+  const byStatus = {};
+  const allSt = new Set([...Object.keys(snap.byStatus || {}), ...Object.keys(cur.byStatus || {})]);
+  allSt.forEach(st => {
+    const d = (cur.byStatus[st] || 0) - (snap.byStatus[st] || 0);
+    if (d !== 0) byStatus[st] = d;
+  });
+
+  const byCat = {};
+  const allCats = new Set([...Object.keys(snap.byCat || {}), ...Object.keys(cur.byCat || {})]);
+  allCats.forEach(cat => {
+    const d = (cur.byCat[cat] || 0) - (snap.byCat[cat] || 0);
+    if (d !== 0) byCat[cat] = d;
+  });
+
   weekDelta = {
     total      : cur.total      - (snap.total      || 0),
     complete   : cur.complete   - (snap.complete   || 0),
@@ -948,6 +997,7 @@ function initSnapshot() {
     excluir    : cur.excluir    - (snap.excluir    || 0),
     duplicatas : cur.duplicatas - (snap.duplicatas || 0),
     avgPct     : cur.avgPct     - (snap.avgPct     || 0),
+    byStatus, byCat,
   };
   weekSnapDate = snap.savedAt;
 }
@@ -1010,6 +1060,11 @@ function renderStatus() {
       .map(v => `<span class="status-vendor-tag" title="${esc(v.cnpj)}">${esc(v.nome)}</span>`)
       .join('');
 
+    const stDiff = weekDelta && weekDelta.byStatus && weekDelta.byStatus[status];
+    const stBadge = stDiff
+      ? `<span class="status-delta ${stDiff > 0 ? 'up' : 'down'}">${stDiff > 0 ? '↑ +' : '↓ '}${stDiff} vs baseline</span>`
+      : '';
+
     return `
       <div class="status-card ${isOpen ? 'open' : ''}" id="sc-${i}">
         <div class="status-header" onclick="toggleStatus(${i}, '${escAttr(status)}')">
@@ -1021,6 +1076,7 @@ function renderStatus() {
             </div>
             <span class="status-pct">${pct}% do total</span>
           </div>
+          ${stBadge}
           <span class="status-count-badge">${vendors.length} forn.</span>
           <span class="status-chevron">▼</span>
         </div>
@@ -1149,6 +1205,10 @@ function renderCategories() {
     const avg      = Math.round(pcts.reduce((s, x) => s + x, 0) / pcts.length);
     const complete = pcts.filter(p => p === 100).length;
     const isActive = activeCat === cat;
+    const catDiff  = weekDelta && weekDelta.byCat && weekDelta.byCat[cat];
+    const catDeltaHtml = catDiff
+      ? `<div class="cat-delta ${catDiff > 0 ? 'up' : 'down'}">${catDiff > 0 ? '↑ +' : '↓ '}${catDiff}pp vs baseline</div>`
+      : '';
     return `
       <div class="cat-card ${extraClass} ${isActive ? 'active' : ''}" data-cat="${escAttr(cat)}">
         <div class="cat-name" title="${escAttr(cat)}">${esc(cat)}</div>
@@ -1157,6 +1217,7 @@ function renderCategories() {
           <span class="cat-pct" style="color:${extraClass ? '#E67E22' : pctColor(avg)}">${avg}%</span>
         </div>
         <div class="mini-track"><div class="mini-fill" style="width:${avg}%;background:${extraClass ? '#E67E22' : pctColor(avg)}"></div></div>
+        ${catDeltaHtml}
       </div>`;
   };
 
