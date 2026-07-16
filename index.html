@@ -975,17 +975,20 @@ function initSnapshot() {
   // Snapshot desta semana → calcula delta acumulado
   const cur = currentMetrics();
 
+  const snapByStatus = snap.byStatus || {};
+  const snapByCat    = snap.byCat    || {};
+
   const byStatus = {};
-  const allSt = new Set([...Object.keys(snap.byStatus || {}), ...Object.keys(cur.byStatus || {})]);
+  const allSt = new Set([...Object.keys(snapByStatus), ...Object.keys(cur.byStatus || {})]);
   allSt.forEach(st => {
-    const d = (cur.byStatus[st] || 0) - (snap.byStatus[st] || 0);
+    const d = (cur.byStatus[st] || 0) - (snapByStatus[st] || 0);
     if (d !== 0) byStatus[st] = d;
   });
 
   const byCat = {};
-  const allCats = new Set([...Object.keys(snap.byCat || {}), ...Object.keys(cur.byCat || {})]);
+  const allCats = new Set([...Object.keys(snapByCat), ...Object.keys(cur.byCat || {})]);
   allCats.forEach(cat => {
-    const d = (cur.byCat[cat] || 0) - (snap.byCat[cat] || 0);
+    const d = (cur.byCat[cat] || 0) - (snapByCat[cat] || 0);
     if (d !== 0) byCat[cat] = d;
   });
 
