@@ -216,6 +216,34 @@
       color: var(--gray-mid);
       margin-top: 6px;
     }
+    .kpi-delta {
+      display: inline-flex;
+      align-items: center;
+      gap: 3px;
+      font-size: 12px;
+      font-weight: 700;
+      margin-top: 5px;
+      padding: 2px 8px;
+      border-radius: 999px;
+    }
+    .kpi-delta.positive { background: #EAFAF1; color: var(--green); }
+    .kpi-delta.negative { background: #FDEDEC; color: var(--red); }
+    .kpi-delta.neutral  { background: var(--gray-light); color: var(--gray-mid); }
+    .btn-baseline {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 7px 14px;
+      background: transparent;
+      color: var(--gray-mid);
+      border: 1.5px solid var(--gray-light);
+      border-radius: 8px;
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+    .btn-baseline:hover { border-color: var(--yellow); color: var(--dark); background: var(--yellow-light); }
 
     /* ── Overall progress ── */
     .overall-card {
@@ -588,6 +616,7 @@
   <div class="header-center">Dashboard · Cadastro de Fornecedores</div>
   <div class="header-right">
     <span class="last-update" id="lastUpdate"></span>
+    <button class="btn-baseline" id="btnBaseline" title="Salvar estado atual como baseline semanal" style="display:none">📸 Baseline</button>
     <button class="btn-upload-manual" id="btnManual" title="Carregar CSV local">📂 CSV local</button>
     <button class="btn-reload" id="btnReload"><span class="btn-icon">⟳</span> Atualizar</button>
   </div>
@@ -620,6 +649,7 @@
     <!-- KPIs -->
     <div class="kpi-row" id="kpiRow"></div>
     <div class="kpi-row" style="grid-template-columns: repeat(2,1fr); margin-top: -8px;" id="alertRow"></div>
+    <div id="snapInfo" style="font-size:11px;color:var(--gray-mid);margin:-4px 0 14px;text-align:right;display:none"></div>
 
     <!-- Overall progress -->
     <div class="overall-card">
@@ -727,6 +757,8 @@ const PAGE_SIZE = 50;
 let sortCol = 'pct';
 let sortDir = 'desc';
 let openStatuses = new Set();
+let weekDelta    = null;
+let weekSnapDate = null;
 
 // ─── CSV Parser ───────────────────────────────────────────────────────────────
 
@@ -855,6 +887,71 @@ function formatPct(pct) {
   return pct + '%';
 }
 
+// ─── Snapshot / Delta semanal ─────────────────────────────────────────────────
+
+const SNAPSHOT_KEY = 'spotlar_weekly_snapshot';
+
+function getSnap() {
+  try { return JSON.parse(localStorage.getItem(SNAPSHOT_KEY) || 'null'); }
+  catch { return null; }
+}
+function saveSnap(m) {
+  try { localStorage.setItem(SNAPSHOT_KEY, JSON.stringify({ ...m, savedAt: new Date().toISOString() })); } catch {}
+}
+function currentMetrics() {
+  const a = calcVendors();
+  return {
+    total      : a.length,
+    complete   : a.filter(v => v.pct === 100).length,
+    inProgress : a.filter(v => v.pct > 0 && v.pct < 100).length,
+    notStarted : a.filter(v => v.pct === 0).length,
+    excluir    : allVendors.filter(v => v.isExcluir).length,
+    duplicatas : allVendors.filter(v => v.isDuplicate).length,
+  };
+}
+function initSnapshot() {
+  const snap = getSnap();
+  if (!snap) {
+    saveSnap(currentMetrics());
+    weekDelta = null;
+    weekSnapDate = null;
+    return;
+  }
+  const cur = currentMetrics();
+  weekDelta = {
+    total      : cur.total      - snap.total,
+    complete   : cur.complete   - snap.complete,
+    inProgress : cur.inProgress - snap.inProgress,
+    notStarted : cur.notStarted - snap.notStarted,
+    excluir    : cur.excluir    - snap.excluir,
+    duplicatas : cur.duplicatas - snap.duplicatas,
+  };
+  weekSnapDate = snap.savedAt;
+  // Auto-atualiza às segundas se snapshot tem 6+ dias
+  const days = (Date.now() - new Date(snap.savedAt)) / 86400000;
+  if (new Date().getDay() === 1 && days >= 6) {
+    saveSnap(cur);
+  }
+}
+function resetBaseline() {
+  saveSnap(currentMetrics());
+  weekDelta = null;
+  weekSnapDate = null;
+  renderKPIs();
+  const el = document.getElementById('snapInfo');
+  if (el) el.style.display = 'none';
+  const btn = document.getElementById('btnBaseline');
+  if (btn) { btn.textContent = '✓ Baseline salvo'; setTimeout(() => { btn.textContent = '📸 Baseline'; }, 2000); }
+}
+function deltaTag(diff, goodDir) {
+  if (!diff) return '';
+  const isGood = goodDir === 'up' ? diff > 0 : goodDir === 'down' ? diff < 0 : null;
+  const cls    = isGood === true ? 'positive' : isGood === false ? 'negative' : 'neutral';
+  const arrow  = diff > 0 ? '↑' : '↓';
+  const sign   = diff > 0 ? '+' : '';
+  return `<span class="kpi-delta ${cls}">${arrow} ${sign}${diff} vs semana</span>`;
+}
+
 // ─── Renderização ─────────────────────────────────────────────────────────────
 
 function renderAll() {
@@ -933,26 +1030,31 @@ function renderKPIs() {
   const excluirCount= allVendors.filter(v => v.isExcluir).length;
   const dupCount    = allVendors.filter(v => v.isDuplicate).length;
   const pctComplete = total > 0 ? Math.round(complete / total * 100) : 0;
+  const d = weekDelta || {};
 
   document.getElementById('kpiRow').innerHTML = `
     <div class="kpi-card accent">
       <div class="kpi-label">Total de Fornecedores</div>
       <div class="kpi-value">${total}</div>
+      ${weekDelta ? deltaTag(d.total, 'neutral') : ''}
       <div class="kpi-sub">${dataFields.length} campos · excluídos separados</div>
     </div>
     <div class="kpi-card green">
       <div class="kpi-label">Completos (100%)</div>
       <div class="kpi-value green">${complete}</div>
+      ${weekDelta ? deltaTag(d.complete, 'up') : ''}
       <div class="kpi-sub">${pctComplete}% do total ativo</div>
     </div>
     <div class="kpi-card orange">
       <div class="kpi-label">Em Progresso</div>
       <div class="kpi-value orange">${inProgress}</div>
+      ${weekDelta ? deltaTag(d.inProgress, 'up') : ''}
       <div class="kpi-sub">parcialmente preenchidos</div>
     </div>
     <div class="kpi-card red">
       <div class="kpi-label">Não Iniciados</div>
       <div class="kpi-value red">${notStarted}</div>
+      ${weekDelta ? deltaTag(d.notStarted, 'down') : ''}
       <div class="kpi-sub">sem dados preenchidos</div>
     </div>
   `;
@@ -961,14 +1063,26 @@ function renderKPIs() {
     <div class="kpi-card slate">
       <div class="kpi-label">A Excluir</div>
       <div class="kpi-value slate">${excluirCount}</div>
+      ${weekDelta ? deltaTag(d.excluir, 'neutral') : ''}
       <div class="kpi-sub">analisados · contam como 100%</div>
     </div>
     <div class="kpi-card purple">
       <div class="kpi-label">Duplicatas</div>
       <div class="kpi-value purple">${dupCount}</div>
+      ${weekDelta ? deltaTag(d.duplicatas, 'down') : ''}
       <div class="kpi-sub">mesmo CNPJ ou motivo duplicata</div>
     </div>
   `;
+
+  // Mostra info do baseline e botão
+  const snapEl = document.getElementById('snapInfo');
+  const btnBase = document.getElementById('btnBaseline');
+  if (weekDelta && weekSnapDate && snapEl) {
+    const snapStr = new Date(weekSnapDate).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' });
+    snapEl.style.display = 'block';
+    snapEl.textContent = `📊 Comparação vs baseline de ${snapStr}`;
+  }
+  if (btnBase) btnBase.style.display = 'inline-flex';
 }
 
 function renderOverall() {
@@ -1209,6 +1323,7 @@ function loadCSVText(text, source) {
     processData(headers, rows);
     if (allVendors.length === 0) throw new Error('Nenhum fornecedor encontrado. Verifique a aba exportada.');
 
+    initSnapshot();
     activeCat = '';
     openRows.clear();
     document.getElementById('loadingZone').style.display = 'none';
@@ -1278,6 +1393,7 @@ fileInput.addEventListener('change', e => { loadFile(e.target.files[0]); fileInp
 
 // ─── Botões do header ─────────────────────────────────────────────────────────
 document.getElementById('btnReload').addEventListener('click', fetchSheet);
+document.getElementById('btnBaseline').addEventListener('click', resetBaseline);
 document.getElementById('btnManual').addEventListener('click', () => {
   document.getElementById('loadingZone').style.display = 'none';
   document.getElementById('uploadZone').style.display  = 'block';
