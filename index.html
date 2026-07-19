@@ -665,7 +665,7 @@
 
     <!-- KPIs -->
     <div class="kpi-row" id="kpiRow"></div>
-    <div class="kpi-row" style="grid-template-columns: repeat(2,1fr); margin-top: -8px;" id="alertRow"></div>
+    <div class="kpi-row" style="grid-template-columns: repeat(3,1fr); margin-top: -8px;" id="alertRow"></div>
     <div id="snapInfo" style="font-size:11px;color:var(--gray-mid);margin:-4px 0 14px;text-align:right;display:none"></div>
 
     <!-- Overall progress -->
@@ -928,6 +928,13 @@ function currentMetrics() {
     byStatus[st] = (byStatus[st] || 0) + 1;
   });
 
+  // Mapa por fornecedor para detectar mudanças individuais de status
+  const vendorStatus = {};
+  allVendors.forEach(v => {
+    const key = v.cnpj || v.nome;
+    vendorStatus[key] = (v.raw_status || '').trim();
+  });
+
   const byCat = {};
   a.forEach(v => {
     if (!byCat[v.categoria]) byCat[v.categoria] = { count: 0, total: 0 };
@@ -945,7 +952,7 @@ function currentMetrics() {
     notStarted : a.filter(v => v.pct === 0).length,
     excluir    : allVendors.filter(v => v.isExcluir).length,
     duplicatas : allVendors.filter(v => v.isDuplicate).length,
-    avgPct, byStatus, byCat,
+    avgPct, byStatus, vendorStatus, byCat,
   };
 }
 function getLastMonday5am() {
@@ -992,14 +999,25 @@ function initSnapshot() {
     if (d !== 0) byCat[cat] = d;
   });
 
+  // Conta fornecedores que mudaram de status individualmente
+  const snapVS = snap.vendorStatus || {};
+  let statusChanged = 0;
+  allVendors.forEach(v => {
+    const key  = v.cnpj || v.nome;
+    const prev = snapVS[key];
+    const curr = (v.raw_status || '').trim();
+    if (prev !== undefined && prev !== curr) statusChanged++;
+  });
+
   weekDelta = {
-    total      : cur.total      - (snap.total      || 0),
-    complete   : cur.complete   - (snap.complete   || 0),
-    inProgress : cur.inProgress - (snap.inProgress || 0),
-    notStarted : cur.notStarted - (snap.notStarted || 0),
-    excluir    : cur.excluir    - (snap.excluir    || 0),
-    duplicatas : cur.duplicatas - (snap.duplicatas || 0),
-    avgPct     : snap.avgPct != null ? cur.avgPct - snap.avgPct : 0,
+    total         : cur.total      - (snap.total      || 0),
+    complete      : cur.complete   - (snap.complete   || 0),
+    inProgress    : cur.inProgress - (snap.inProgress || 0),
+    notStarted    : cur.notStarted - (snap.notStarted || 0),
+    excluir       : cur.excluir    - (snap.excluir    || 0),
+    duplicatas    : cur.duplicatas - (snap.duplicatas || 0),
+    avgPct        : snap.avgPct != null ? cur.avgPct - snap.avgPct : 0,
+    statusChanged,
     byStatus, byCat,
   };
   weekSnapDate = snap.savedAt;
@@ -1136,6 +1154,7 @@ function renderKPIs() {
     </div>
   `;
 
+  const statusChangedCount = weekDelta ? weekDelta.statusChanged : null;
   document.getElementById('alertRow').innerHTML = `
     <div class="kpi-card slate">
       <div class="kpi-label">A Excluir</div>
@@ -1148,6 +1167,11 @@ function renderKPIs() {
       <div class="kpi-value purple">${dupCount}</div>
       ${weekDelta ? deltaTag(d.duplicatas, 'down') : ''}
       <div class="kpi-sub">mesmo CNPJ ou motivo duplicata</div>
+    </div>
+    <div class="kpi-card" style="border-left-color:#2980B9">
+      <div class="kpi-label">Mudanças de Status</div>
+      <div class="kpi-value" style="color:#2980B9">${statusChangedCount !== null ? statusChangedCount : '—'}</div>
+      <div class="kpi-sub">${statusChangedCount !== null ? 'fornecedores com status alterado vs baseline' : 'clique em 📸 Baseline para rastrear'}</div>
     </div>
   `;
 
