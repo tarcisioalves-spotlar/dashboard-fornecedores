@@ -999,7 +999,7 @@ function initSnapshot() {
     notStarted : cur.notStarted - (snap.notStarted || 0),
     excluir    : cur.excluir    - (snap.excluir    || 0),
     duplicatas : cur.duplicatas - (snap.duplicatas || 0),
-    avgPct     : cur.avgPct     - (snap.avgPct     || 0),
+    avgPct     : snap.avgPct != null ? cur.avgPct - snap.avgPct : 0,
     byStatus, byCat,
   };
   weekSnapDate = snap.savedAt;
