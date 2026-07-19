@@ -736,9 +736,9 @@
         <span class="filter-label">Status</span>
         <select class="filter-select" id="statusFilter">
           <option value="">Todos</option>
-          <option value="complete">Completos (100%)</option>
-          <option value="progress">Em progresso</option>
-          <option value="empty">Não iniciados (0%)</option>
+          <option value="progress">Em Progresso (com status)</option>
+          <option value="empty">Não Iniciados (sem status)</option>
+          <option value="complete">Cadastro 100% preenchido</option>
           <option value="excluir">A Excluir</option>
           <option value="duplicata">Duplicatas</option>
         </select>
@@ -950,9 +950,17 @@ function getSnap() {
 function saveSnap(m) {
   try { localStorage.setItem(SNAPSHOT_KEY, JSON.stringify({ ...m, savedAt: new Date().toISOString() })); } catch {}
 }
+function hasStatus(v) { return (v.raw_status || '').trim() !== ''; }
+
 function currentMetrics() {
   const a = calcVendors();
   const avgPct = a.length > 0 ? Math.round(a.reduce((s, v) => s + v.pct, 0) / a.length) : 0;
+
+  // Status-based classification (nova lógica)
+  const inProgressVendors = a.filter(hasStatus);
+  const notStartedVendors = a.filter(v => !hasStatus(v));
+  const avgFillInProgress = inProgressVendors.length > 0
+    ? Math.round(inProgressVendors.reduce((s, v) => s + v.pct, 0) / inProgressVendors.length) : 0;
 
   const byStatus = {};
   allVendors.forEach(v => {
@@ -960,7 +968,6 @@ function currentMetrics() {
     byStatus[st] = (byStatus[st] || 0) + 1;
   });
 
-  // Mapa por fornecedor para detectar mudanças individuais de status
   const vendorStatus = {};
   allVendors.forEach(v => {
     const key = v.cnpj || v.nome;
@@ -978,12 +985,12 @@ function currentMetrics() {
   });
 
   return {
-    total      : a.length,
-    complete   : a.filter(v => v.pct === 100).length,
-    inProgress : a.filter(v => v.pct > 0 && v.pct < 100).length,
-    notStarted : a.filter(v => v.pct === 0).length,
-    excluir    : allVendors.filter(v => v.isExcluir).length,
-    duplicatas : allVendors.filter(v => v.isDuplicate).length,
+    total             : a.length,
+    inProgress        : inProgressVendors.length,
+    notStarted        : notStartedVendors.length,
+    avgFillInProgress,
+    excluir           : allVendors.filter(v => v.isExcluir).length,
+    duplicatas        : allVendors.filter(v => v.isDuplicate).length,
     avgPct, byStatus, vendorStatus, byCat,
   };
 }
@@ -1042,13 +1049,13 @@ function initSnapshot() {
   });
 
   weekDelta = {
-    total         : cur.total      - (snap.total      || 0),
-    complete      : cur.complete   - (snap.complete   || 0),
-    inProgress    : cur.inProgress - (snap.inProgress || 0),
-    notStarted    : cur.notStarted - (snap.notStarted || 0),
-    excluir       : cur.excluir    - (snap.excluir    || 0),
-    duplicatas    : cur.duplicatas - (snap.duplicatas || 0),
-    avgPct        : snap.avgPct != null ? cur.avgPct - snap.avgPct : 0,
+    total             : cur.total      - (snap.total      || 0),
+    inProgress        : cur.inProgress - (snap.inProgress || 0),
+    notStarted        : cur.notStarted - (snap.notStarted || 0),
+    avgFillInProgress : snap.avgFillInProgress != null ? cur.avgFillInProgress - snap.avgFillInProgress : 0,
+    excluir           : cur.excluir    - (snap.excluir    || 0),
+    duplicatas        : cur.duplicatas - (snap.duplicatas || 0),
+    avgPct            : snap.avgPct != null ? cur.avgPct - snap.avgPct : 0,
     statusChanged,
     byStatus, byCat,
   };
@@ -1149,14 +1156,15 @@ function toggleStatus(i, status) {
 }
 
 function renderKPIs() {
-  const active      = calcVendors();
-  const total       = active.length;
-  const complete    = active.filter(v => v.pct === 100).length;
-  const inProgress  = active.filter(v => v.pct > 0 && v.pct < 100).length;
-  const notStarted  = active.filter(v => v.pct === 0).length;
-  const excluirCount= allVendors.filter(v => v.isExcluir).length;
-  const dupCount    = allVendors.filter(v => v.isDuplicate).length;
-  const pctComplete = total > 0 ? Math.round(complete / total * 100) : 0;
+  const active          = calcVendors();
+  const total           = active.length;
+  const inProgress      = active.filter(hasStatus).length;
+  const notStarted      = active.filter(v => !hasStatus(v)).length;
+  const excluirCount    = allVendors.filter(v => v.isExcluir).length;
+  const dupCount        = allVendors.filter(v => v.isDuplicate).length;
+  const inProgressVendors = active.filter(hasStatus);
+  const avgFill         = inProgressVendors.length > 0
+    ? Math.round(inProgressVendors.reduce((s, v) => s + v.pct, 0) / inProgressVendors.length) : 0;
   const d = weekDelta || {};
 
   document.getElementById('kpiRow').innerHTML = `
@@ -1164,25 +1172,24 @@ function renderKPIs() {
       <div class="kpi-label">Total de Fornecedores</div>
       <div class="kpi-value">${total}</div>
       ${weekDelta ? deltaTag(d.total, 'neutral') : ''}
-      <div class="kpi-sub">${dataFields.length} campos · excluídos separados</div>
-    </div>
-    <div class="kpi-card green">
-      <div class="kpi-label">Completos (100%)</div>
-      <div class="kpi-value green">${complete}</div>
-      ${weekDelta ? deltaTag(d.complete, 'up') : ''}
-      <div class="kpi-sub">${pctComplete}% do total ativo</div>
+      <div class="kpi-sub">${dataFields.length} campos avaliados</div>
     </div>
     <div class="kpi-card orange">
       <div class="kpi-label">Em Progresso</div>
       <div class="kpi-value orange">${inProgress}</div>
       ${weekDelta ? deltaTag(d.inProgress, 'up') : ''}
-      <div class="kpi-sub">parcialmente preenchidos</div>
+      <div class="kpi-sub">com Status na Spotlar preenchido</div>
     </div>
     <div class="kpi-card red">
       <div class="kpi-label">Não Iniciados</div>
       <div class="kpi-value red">${notStarted}</div>
-      ${weekDelta ? deltaTag(d.notStarted, 'down') : ''}
-      <div class="kpi-sub">sem dados preenchidos</div>
+      <div class="kpi-sub">sem status definido ainda</div>
+    </div>
+    <div class="kpi-card green">
+      <div class="kpi-label">% Média dos Em Progresso</div>
+      <div class="kpi-value green">${avgFill}%</div>
+      ${weekDelta ? deltaTag(d.avgFillInProgress, 'up') : ''}
+      <div class="kpi-sub">preenchimento médio dos ativos</div>
     </div>
   `;
 
@@ -1329,9 +1336,9 @@ function getFiltered() {
       const haystack = (v.nome + ' ' + v.cnpj + ' ' + v.razao).toLowerCase();
       if (!haystack.includes(search)) return false;
     }
+    if (status === 'progress'  && !hasStatus(v)) return false;
+    if (status === 'empty'     && hasStatus(v)) return false;
     if (status === 'complete'  && v.pct !== 100) return false;
-    if (status === 'progress'  && (v.pct === 0 || v.pct === 100)) return false;
-    if (status === 'empty'     && v.pct !== 0) return false;
     if (status === 'excluir'   && !v.isExcluir) return false;
     if (status === 'duplicata' && !v.isDuplicate) return false;
     return true;
